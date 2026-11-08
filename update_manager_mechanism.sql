@@ -69,3 +69,10 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Cho phép xóa tài khoản mà không bị chặn bởi hóa đơn / thanh toán cũ (hóa đơn vẫn được bảo toàn)
+ALTER TABLE public.invoices DROP CONSTRAINT IF EXISTS invoices_created_by_fkey;
+ALTER TABLE public.invoices ADD CONSTRAINT invoices_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+
+ALTER TABLE public.payments DROP CONSTRAINT IF EXISTS payments_created_by_fkey;
+ALTER TABLE public.payments ADD CONSTRAINT payments_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
