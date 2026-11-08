@@ -1,1 +1,204 @@
-<!doctype html><html lang="vi"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Sổ Xuất Nhập Cá - Đỗ Phương Tuấn</title><link rel="stylesheet" href="style.css"><script src="xlsx.min.js"></script><body><main><header><h1>Sổ Xuất Nhập Cá <span>- Đỗ Phương Tuấn</span></h1><button id="newProduct">Thêm loại cá</button></header><section class="entrybar"><label>Ngày nhận hàng <input type="date" id="entryDate" required></label><label>Tên người giao hàng <input id="entryPartner" required placeholder="Nhập tên người giao hàng" maxlength="120"></label><label>Ghi chú <input id="entryNote" placeholder="Ghi chú nếu có" maxlength="250"></label></section><section id="stockPanel"><div id="products" class="products"></div><div id="stockTotal" class="total"></div><button id="invoiceOpen" class="invoice-main-button">HÓA ĐƠN / XUẤT ẢNH</button></section><section id="historyPanel"><div class="sectionhead"><h2 id="historyTitle">Lịch sử nhận hàng</h2><div><button id="archiveButton">Tra cứu tháng cũ</button><button id="pdf">Xuất PDF</button><button id="excel">Xuất Excel</button></div></div><div class="filters"><input id="search" placeholder="Tìm tên cá hoặc người giao hàng"><select id="typeFilter"><option value="">Tất cả</option><option value="in">Nhập hàng</option><option value="out">Xuất hàng</option></select><label>Từ <input id="from" type="date"></label><label>Đến <input id="to" type="date"></label><button id="clear">Xóa lọc</button></div><div class="tablewrap"><table><thead><tr><th>Mã phiếu</th><th>Ngày</th><th>Tên cá</th><th>Loại phiếu</th><th>Số lượng</th><th>Đơn giá</th><th>Thành tiền</th><th>Người giao hàng / Ghi chú</th><th></th></tr></thead><tbody id="rows"></tbody></table></div><div id="tablefoot"></div></section><footer><span>Dữ liệu lưu trên trình duyệt này.</span><div><button id="resetTestData">Xóa dữ liệu để test</button><button id="backup">Sao lưu</button><button id="restore">Khôi phục</button><input type="file" id="restoreFile" accept=".json" hidden></div></footer><div hidden><div id="stats"></div><button id="newTx"></button></div></main><dialog id="dialog"><form id="form"><div class="modalhead"><h2 id="modalTitle"></h2><button type="button" id="close">×</button></div><div id="fields"></div><p class="error" id="error"></p><div class="modalfoot"><button type="button" id="cancel">Hủy</button><button class="primary">Lưu</button></div></form></dialog><dialog id="invoiceDialog"><div class="modalhead"><h2>Lập hóa đơn</h2><button id="invoiceClose" type="button">×</button></div><p class="invoicehelp">Hóa đơn gồm toàn bộ lần nhận hàng trong ngày đã chọn, chi tiết từng phiếu và người giao. Nhập giá mỗi thùng; tự tính: Số thùng × 17 = Tổng kg; Số thùng × Giá thùng = Số tiền. Người nhận: Đỗ Phương Tuấn.</p><div class="invoicefields"><label>Tên cơ sở<input id="billSeller" value="ĐỖ PHƯƠNG TUẤN" maxlength="60"></label><label>Điện thoại<input id="billPhone" maxlength="60" placeholder="Số điện thoại cơ sở"></label><label>Tên người giao hàng<input id="billBuyer" maxlength="80" placeholder="Nhập tên người giao hàng"></label><label>Ngày nhận hàng<input id="billDate" type="date"><button id="billLoad" type="button">Lấy hàng ngày này</button></label><input id="billCode" type="hidden"><label>Ghi chú<input id="billNote" maxlength="100"></label></div><div class="tablewrap"><table class="invoiceedit"><thead><tr><th>Đã lưu</th><th>Ngày / Người giao</th><th>Loại cá</th><th>Số lượng</th><th>Quy ra kg</th><th>Giá mỗi thùng</th></tr></thead><tbody id="billRows"></tbody></table></div><div id="billTotal"></div><div class="invoicebuttons"><button id="billPreview">Xem hóa đơn</button><button id="billPng" class="primary">Tải ảnh PNG</button><button id="billPrint">In / Lưu PDF</button></div><p id="billError" class="error"></p><div id="billCanvasWrap" hidden><canvas id="billCanvas"></canvas></div></dialog><div class="toast" id="toast" hidden></div><script src="app.js"></script><script src="invoice.js"></script></body></html>
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sổ Xuất Nhập Cá - Đỗ Phương Tuấn</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="xlsx.min.js"></script>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Sổ Xuất Nhập Cá <span>- Đỗ Phương Tuấn</span></h1>
+      <button id="newProduct">Thêm loại cá</button>
+    </header>
+
+    <section class="entrybar">
+      <label>Ngày nhận hàng <input type="date" id="entryDate" required></label>
+      <label>Tên người giao hàng <input id="entryPartner" required placeholder="Nhập tên người giao hàng" maxlength="120"></label>
+      <label>Ghi chú <input id="entryNote" placeholder="Ghi chú nếu có" maxlength="250"></label>
+    </section>
+
+    <!-- THANH CHUYỂN TAB: NHẬP THÙNG & THÊM HÀNG LẺ -->
+    <nav class="entry-tabs">
+      <button type="button" id="tabBulk" class="tab-button active">📦 Nhập Theo Thùng</button>
+      <button type="button" id="tabRetail" class="tab-button">⚖️ Thêm Hàng Lẻ</button>
+    </nav>
+
+    <!-- TAB 1: NHẬP THEO THÙNG (DANH SÁCH THẺ SẢN PHẨM CÁ) -->
+    <section id="stockPanel">
+      <div id="products" class="products"></div>
+    </section>
+
+    <!-- TAB 2: THÊM HÀNG LẺ (MẶC ĐỊNH KG, GIÁ/KG) -->
+    <section id="retailPanel" class="retail-panel" hidden>
+      <div class="retail-card">
+        <div class="retail-header">
+          <h3>⚖️ Nhập Hàng Lẻ (Tính theo Kg)</h3>
+          <span class="retail-badge">Mặc định: Kg</span>
+        </div>
+
+        <div class="retail-body">
+          <label class="retail-field">
+            <span class="field-title">Chọn loại cá</span>
+            <select id="retailProduct" class="retail-select"></select>
+          </label>
+
+          <div class="retail-grid">
+            <label class="retail-field">
+              <span class="field-title">Số lượng (Kg)</span>
+              <div class="input-unit-wrap">
+                <input type="number" id="retailQty" min="0.001" max="1000000000" step="0.001" placeholder="Ví dụ: 12.5" required>
+                <span class="unit-tag">kg</span>
+              </div>
+            </label>
+
+            <label class="retail-field">
+              <span class="field-title">Giá tiền mỗi Kg (VNĐ/kg)</span>
+              <div class="input-unit-wrap">
+                <input type="text" inputmode="numeric" data-currency id="retailPriceKg" placeholder="Ví dụ: 80.000" required>
+                <span class="unit-tag">₫/kg</span>
+              </div>
+            </label>
+          </div>
+
+          <div id="retailAmount" class="retail-amount-box">
+            <span class="amount-label">Thành tiền:</span>
+            <span id="retailAmountVal" class="amount-number">—</span>
+          </div>
+
+          <button type="button" id="retailSubmit" class="primary retail-submit-btn">
+            Ghi nhận hàng lẻ
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- TỔNG NHẬN TRONG NGÀY & NÚT HÓA ĐƠN XUẤT ẢNH -->
+    <section class="summary-section">
+      <div id="stockTotal" class="total"></div>
+      <button id="invoiceOpen" class="invoice-main-button">HÓA ĐƠN / XUẤT ẢNH</button>
+    </section>
+
+    <!-- LỊCH SỬ NHẬN HÀNG -->
+    <section id="historyPanel">
+      <div class="sectionhead">
+        <h2 id="historyTitle">Lịch sử nhận hàng</h2>
+        <div>
+          <button id="archiveButton">Tra cứu tháng cũ</button>
+          <button id="pdf">Xuất PDF</button>
+          <button id="excel">Xuất Excel</button>
+        </div>
+      </div>
+      <div class="filters">
+        <input id="search" placeholder="Tìm tên cá hoặc người giao hàng">
+        <select id="typeFilter">
+          <option value="">Tất cả</option>
+          <option value="in">Nhập hàng</option>
+          <option value="out">Xuất hàng</option>
+        </select>
+        <label>Từ <input id="from" type="date"></label>
+        <label>Đến <input id="to" type="date"></label>
+        <button id="clear">Xóa lọc</button>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Mã phiếu</th>
+              <th>Ngày</th>
+              <th>Tên cá</th>
+              <th>Loại phiếu</th>
+              <th>Số lượng</th>
+              <th>Đơn giá</th>
+              <th>Thành tiền</th>
+              <th>Người giao hàng / Ghi chú</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div id="tablefoot"></div>
+    </section>
+
+    <footer>
+      <span>Dữ liệu lưu trên trình duyệt này.</span>
+      <div>
+        <button id="resetTestData">Xóa dữ liệu để test</button>
+        <button id="backup">Sao lưu</button>
+        <button id="restore">Khôi phục</button>
+        <input type="file" id="restoreFile" accept=".json" hidden>
+      </div>
+    </footer>
+
+    <div hidden>
+      <div id="stats"></div>
+      <button id="newTx"></button>
+    </div>
+  </main>
+
+  <dialog id="dialog">
+    <form id="form">
+      <div class="modalhead">
+        <h2 id="modalTitle"></h2>
+        <button type="button" id="close">×</button>
+      </div>
+      <div id="fields"></div>
+      <p class="error" id="error"></p>
+      <div class="modalfoot">
+        <button type="button" id="cancel">Hủy</button>
+        <button class="primary">Lưu</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="invoiceDialog">
+    <div class="modalhead">
+      <h2>Lập hóa đơn</h2>
+      <button id="invoiceClose" type="button">×</button>
+    </div>
+    <p class="invoicehelp">
+      Hóa đơn gồm toàn bộ lần nhận hàng trong ngày đã chọn, chi tiết từng phiếu và người giao. Nhập giá mỗi thùng; tự tính: Số thùng × 17 = Tổng kg; Số thùng × Giá thùng = Số tiền. Người nhận: Đỗ Phương Tuấn.
+    </p>
+    <div class="invoicefields">
+      <label>Tên cơ sở<input id="billSeller" value="ĐỖ PHƯƠNG TUẤN" maxlength="60"></label>
+      <label>Điện thoại<input id="billPhone" maxlength="60" placeholder="Số điện thoại cơ sở"></label>
+      <label>Tên người giao hàng<input id="billBuyer" maxlength="80" placeholder="Nhập tên người giao hàng"></label>
+      <label>Ngày nhận hàng<input id="billDate" type="date"><button id="billLoad" type="button">Lấy hàng ngày này</button></label>
+      <input id="billCode" type="hidden">
+      <label>Ghi chú<input id="billNote" maxlength="100"></label>
+    </div>
+    <div class="tablewrap">
+      <table class="invoiceedit">
+        <thead>
+          <tr>
+            <th>Đã lưu</th>
+            <th>Ngày / Người giao</th>
+            <th>Loại cá</th>
+            <th>Số lượng</th>
+            <th>Quy ra kg</th>
+            <th>Giá mỗi thùng</th>
+          </tr>
+        </thead>
+        <tbody id="billRows"></tbody>
+      </table>
+    </div>
+    <div id="billTotal"></div>
+    <div class="invoicebuttons">
+      <button id="billPreview">Xem hóa đơn</button>
+      <button id="billPng" class="primary">Tải ảnh PNG</button>
+      <button id="billPrint">In / Lưu PDF</button>
+    </div>
+    <p id="billError" class="error"></p>
+    <div id="billCanvasWrap" hidden>
+      <canvas id="billCanvas"></canvas>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" hidden></div>
+  <script src="app.js"></script>
+  <script src="invoice.js"></script>
+</body>
+</html>
