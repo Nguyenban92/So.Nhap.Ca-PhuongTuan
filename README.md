@@ -5,7 +5,7 @@
 ---
 
 ## 🌟 ĐIỂM NỔI BẬT BẢN NÂNG CẤP ONLINE
-1. **Nhiều điện thoại cùng cơ sở**: Tất cả điện thoại của nhân viên và quản lý đăng nhập chung mã cơ sở `DOPHƯONGTUAN` sẽ thấy chung danh mục cá, khách hàng, hóa đơn và công nợ tức thời.
+1. **Nhiều điện thoại cùng cơ sở**: Tất cả điện thoại của nhân viên và quản lý đăng nhập chung mã cơ sở `DOPHUONGTUAN` sẽ thấy chung danh mục cá, khách hàng, hóa đơn và công nợ tức thời.
 2. **Đồng bộ Realtime**: Khi máy A xuất hóa đơn hoặc ghi thanh toán, máy B sẽ cập nhật ngay lập tức mà không làm mất phiếu tạm đang gõ dở.
 3. **Giao dịch nguyên tử (Atomic Transaction)**: Dùng khóa hàng `FOR UPDATE` trong PostgreSQL. Khi hai điện thoại cùng bấm thanh toán một hóa đơn tại cùng một thời điểm, hệ thống đảm bảo số tiền thanh toán **không bao giờ vượt quá số còn thiếu**.
 4. **Tách biệt tuyệt đối Nhập Hàng & Bán Hàng**: Kể cả khi trùng tên khách hàng, dữ liệu hóa đơn, thanh toán và công nợ của hai tab hoàn toàn độc lập 100%.
@@ -22,7 +22,7 @@
 2. Chọn mục **SQL Editor** ở thanh menu bên trái.
 3. Bấm **New query** và mở file `supabase_migration.sql` trong mã nguồn.
 4. Copy toàn bộ nội dung file `supabase_migration.sql`, dán vào SQL Editor rồi bấm **Run** (chạy).
-   *(Đoạn script này sẽ tự động tạo bảng `stores`, `profiles`, `products`, `invoices`, `payments`, `legacy_tx`, thiết lập khóa ngoại, RLS, cấp quyền GRANTS và khởi tạo cơ sở mặc định `DOPHƯONGTUAN`)*.
+   *(Đoạn script này sẽ tự động tạo bảng `stores`, `profiles`, `products`, `invoices`, `payments`, `legacy_tx`, thiết lập khóa ngoại, RLS, cấp quyền GRANTS và khởi tạo cơ sở mặc định `DOPHUONGTUAN`)*.
 
 ### Bước 2: Tắt xác thực email để đăng ký vào dùng ngay
 1. Trong Supabase Dashboard, vào menu **Authentication** -> **Providers** -> bấm vào **Email**.
@@ -39,9 +39,9 @@
 - Chọn tab **Đăng Ký Thành Viên**:
   - Nhập **Họ và Tên** (ví dụ: *Đỗ Phương Tuấn* hoặc *Nhân viên A*).
   - Nhập **Email** và **Mật khẩu**.
-  - Ô **Mã Cơ Sở** để mặc định là `DOPHƯONGTUAN`.
+  - Ô **Mã Cơ Sở** để mặc định là `DOPHUONGTUAN`.
   - Bấm **TẠO TÀI KHOẢN VÀ VÀO CƠ SỞ**.
-- Mọi điện thoại nhập chung mã cơ sở `DOPHƯONGTUAN` sẽ tự động liên kết vào cùng một cơ sở và thấy chung toàn bộ dữ liệu.
+- Mọi điện thoại nhập chung mã cơ sở `DOPHUONGTUAN` sẽ tự động liên kết vào cùng một cơ sở và thấy chung toàn bộ dữ liệu.
 
 ### 2. Chuyển dữ liệu cũ từ máy lên Online (nếu có)
 - Sau khi đăng nhập, nếu trên máy này đã có sẵn dữ liệu v24 cũ (trong localStorage), bấm nút màu cam **Đẩy dữ liệu cũ lên Online**.

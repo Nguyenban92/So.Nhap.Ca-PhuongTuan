@@ -2,7 +2,7 @@
 INSERT INTO public.profiles (id, store_id, display_name, role)
 SELECT u.id, s.id, 'Đỗ Phương Tuấn', 'owner'
 FROM auth.users u
-CROSS JOIN (SELECT id FROM public.stores WHERE code = 'DOPHƯONGTUAN' LIMIT 1) s
+CROSS JOIN (SELECT id FROM public.stores WHERE code = 'DOPHUONGTUAN' OR code = 'DOPHƯONGTUAN' LIMIT 1) s
 ON CONFLICT (id) DO UPDATE SET store_id = EXCLUDED.store_id;
 
 -- NÂNG CẤP HÀM BẢO MẬT: LUÔN TRẢ VỀ STORE_ID CHO TẤT CẢ TÀI KHOẢN CÙNG CƠ SỞ
@@ -20,7 +20,7 @@ BEGIN
   IF v_uid IS NULL THEN RETURN NULL; END IF;
   SELECT store_id INTO v_store_id FROM public.profiles WHERE id = v_uid LIMIT 1;
   IF v_store_id IS NULL THEN
-    SELECT id INTO v_store_id FROM public.stores WHERE code = 'DOPHƯONGTUAN' LIMIT 1;
+    SELECT id INTO v_store_id FROM public.stores WHERE code = 'DOPHUONGTUAN' OR code = 'DOPHƯONGTUAN' LIMIT 1;
     INSERT INTO public.profiles (id, store_id, display_name, role)
     VALUES (v_uid, v_store_id, 'Đỗ Phương Tuấn', 'member')
     ON CONFLICT (id) DO NOTHING;

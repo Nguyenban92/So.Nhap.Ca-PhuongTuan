@@ -120,7 +120,7 @@ const sync = {
       const { data: res, error } = await this.client.rpc('get_store_initial_state');
       
       // Khởi tạo thông tin cơ sở
-      this.store = res?.store || { id: 'default', name: 'ĐỖ PHƯƠNG TUẤN', code: 'DOPHƯONGTUAN' };
+      this.store = res?.store || { id: 'default', name: 'ĐỖ PHƯƠNG TUẤN', code: 'DOPHUONGTUAN' };
       this.profile = res?.user || { id: this.user.id, name: this.user.email?.split('@')[0] || 'Thành viên' };
 
       // Đọc dữ liệu server
@@ -159,9 +159,9 @@ const sync = {
         const cloudIds = new Set(cloudInvs.map(i => i.id));
         const cloudCodes = new Set(cloudInvs.map(i => i.code));
 
-        // CHỈ HỢP NHẤT TỪ BỘ NHỚ LOCAL NẾU ĐÂY LÀ CƠ SỞ GỐC DOPHƯONGTUAN
+        // CHỈ HỢP NHẤT TỪ BỘ NHỚ LOCAL NẾU ĐÂY LÀ CƠ SỞ GỐC DOPHUONGTUAN
         // Với các tài khoản quản lý mới độc lập, chỉ đọc dữ liệu riêng của tài khoản đó từ Cloud!
-        if (this.store?.code === 'DOPHƯONGTUAN' && Array.isArray(localSource.invoices)) {
+        if ((this.store?.code === 'DOPHUONGTUAN' || this.store?.code === 'DOPHƯONGTUAN') && Array.isArray(localSource.invoices)) {
           for (const locInv of localSource.invoices) {
             if (!cloudIds.has(locInv.id) && !cloudCodes.has(locInv.code)) {
               mergedInvs.push(locInv);

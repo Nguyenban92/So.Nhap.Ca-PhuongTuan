@@ -578,12 +578,12 @@ DO $$
 DECLARE
   v_default_store_id UUID;
 BEGIN
-  -- Tạo cơ sở mặc định 'DOPHƯONGTUAN' nếu chưa có
+  -- Tạo cơ sở mặc định 'DOPHUONGTUAN' nếu chưa có
   INSERT INTO public.stores (code, name, phone)
-  VALUES ('DOPHƯONGTUAN', 'ĐỖ PHƯƠNG TUẤN', '0988888888')
+  VALUES ('DOPHUONGTUAN', 'ĐỖ PHƯƠNG TUẤN', '0988888888')
   ON CONFLICT (code) DO NOTHING;
 
-  SELECT id INTO v_default_store_id FROM public.stores WHERE code = 'DOPHƯONGTUAN';
+  SELECT id INTO v_default_store_id FROM public.stores WHERE code = 'DOPHUONGTUAN';
 
   -- Khởi tạo 3 loại cá mặc định v24 vào cơ sở này
   INSERT INTO public.products (store_id, id, name, image)

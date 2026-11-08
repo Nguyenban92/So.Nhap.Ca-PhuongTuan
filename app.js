@@ -191,7 +191,7 @@ $('authLoginForm').onsubmit=async e=>{
 $('authRegisterForm').onsubmit=async e=>{
  e.preventDefault();
  const name=$('regName').value.trim(),storeName=$('regStoreName').value.trim()||name,email=$('regEmail').value.trim(),pass=$('regPassword').value;
- const joinExisting=$('toggleJoinStore').checked,storeCode=joinExisting?$('regStoreCode').value.trim():'AUTO';
+ const joinExisting=$('toggleJoinStore').checked,storeCode=joinExisting?$('regStoreCode').value.trim().replace(/Ư/g,'U').replace(/ư/g,'u'):'AUTO';
  $('regError').textContent='Đang tạo tài khoản quản lý cơ sở…';
  try{
   const res=await sync.register(name,email,pass,storeName,storeCode);

@@ -3,6 +3,9 @@
 -- Chạy đoạn mã này trong Supabase Dashboard -> SQL Editor
 -- ==============================================================================
 
+-- Đổi mã cơ sở DOPHƯONGTUAN sang DOPHUONGTUAN (không có dấu)
+UPDATE public.stores SET code = 'DOPHUONGTUAN' WHERE code = 'DOPHƯONGTUAN';
+
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql
