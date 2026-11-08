@@ -17,8 +17,25 @@ const pname=id=>fishName(data.products.find(p=>p.id===id)?.name||defaults.find(p
 function toast(s){$('toast').textContent=s;$('toast').hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('toast').hidden=true,4500)}
 document.addEventListener('input',e=>{const i=e.target;if(!i.matches('[data-currency]'))return;const at=i.selectionStart||0,n=i.value.slice(0,at).replace(/\D/g,'').length;i.value=formatVnd(i.value);let pos=0,count=0;while(pos<i.value.length&&count<n){if(/\d/.test(i.value[pos]))count++;pos++}i.setSelectionRange(pos,pos)},true);
 function download(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000)}
+async function saveOrShareImage(blobs,baseName){
+ const isMobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+ if(isMobile&&typeof navigator.share==='function'&&navigator.canShare){
+  try{
+   const files=blobs.map((b,idx)=>new File([b],`${baseName}${blobs.length>1?'-trang-'+(idx+1):''}.png`,{type:'image/png'}));
+   if(navigator.canShare({files})){
+    await navigator.share({files,title:baseName});
+    return true;
+   }
+  }catch(err){
+   if(err.name==='AbortError')return true;
+   console.warn('Share error, fallback:',err);
+  }
+ }
+ for(let i=0;i<blobs.length;i++)download(blobs[i],baseName+(blobs.length>1?'-trang-'+(i+1):'')+'.png');
+ return true;
+}
 function rowAmount(t){return Math.round(t.qty*(unit(t)==='box'?(t.boxPrice??t.price*17):t.price))}
-function setMonth(){const d=today();$('from').value=d.slice(0,7)+'-01';const [y,m]=d.split('-').map(Number);$('to').value=d.slice(0,7)+'-'+new Date(y,m,0).getDate();$('historyTitle').textContent='Lịch sử hóa đơn tháng '+d.slice(5,7)+'/'+d.slice(0,4);$('archiveButton').textContent='Tất cả thời gian'}
+function setMonth(){const d=today();$('from').value=d.slice(0,7)+'-01';const [y,m]=d.split('-').map(Number);$('to').value=d.slice(0,7)+'-'+new Date(y,m,0).getDate();$('historyTitle').textContent='Lịch sử hóa đơn & công nợ tháng '+d.slice(5,7)+'/'+d.slice(0,4);$('archiveButton').textContent='Tất cả thời gian'}
 function productImage(p){const src=p.image||({'ca-nuc':'ca-nuc.jpg','ca-chi':'ca-chi.jpg','ca-ngan':'ca-ngan.jpg'}[p.id]);return src&&(/^(data:image\/(webp|png|jpeg);base64,)/.test(src)||['ca-nuc.jpg','ca-chi.jpg','ca-ngan.jpg'].includes(src))?src:null}
 function renderProducts(){
  const inputs=new Map([...document.querySelectorAll('#products .product')].map(card=>[card.dataset.product,{qty:card.querySelector('[data-qty]').value,price:card.querySelector('[data-boxprice]').value}]));
@@ -45,7 +62,7 @@ $('historyList').onclick=e=>{
 };
 $('historyList').onchange=e=>{const id=e.target.dataset.selectDebt;if(!id)return;if(e.target.checked)selectedDebts.add(id);else selectedDebts.delete(id);updateDebtSelection()};
 for(const id of ['search','from','to'])$(id).oninput=renderHistory;
-$('clear').onclick=()=>{$('search').value='';setHistoryAllTime();renderHistory()};$('archiveButton').onclick=()=>{archiveMode=!archiveMode;if(archiveMode){$('from').value='';$('to').value='';$('historyTitle').textContent='Lịch sử hóa đơn';$('archiveButton').textContent='Về tháng hiện tại'}else setMonth();renderHistory()};
+$('clear').onclick=()=>{$('search').value='';setHistoryAllTime();renderHistory()};$('archiveButton').onclick=()=>{archiveMode=!archiveMode;if(archiveMode){$('from').value='';$('to').value='';$('historyTitle').textContent='Lịch sử hóa đơn & công nợ';$('archiveButton').textContent='Tháng hiện tại'}else setMonth();renderHistory()};
 window.addEventListener('beforeunload',e=>{if(hasAnyDraft()){e.preventDefault();e.returnValue=''}});
 syncReceiptDate();setHistoryAllTime();renderProducts();renderDraft();renderHistory();
 setInterval(()=>{if(!archiveMode&&activeMonth!==today().slice(0,7)){activeMonth=today().slice(0,7);setMonth();renderHistory()}},30000);

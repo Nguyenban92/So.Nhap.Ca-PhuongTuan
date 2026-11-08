@@ -36,16 +36,12 @@ $('billPng').onclick=async()=>{
  const invoice={id:existingId||uid(),code:$('billCode').value,seller:$('billSeller').value.trim(),phone:$('billPhone').value.trim(),partner:$('billBuyer').value.trim(),date:$('billDate').value,note:$('billNote').value.trim(),created:Date.now(),items,payments:[]};
  lockExport(true);
  try{
-  // 1. Chuẩn bị ảnh trước khi bắt đầu tải và lưu dữ liệu
+  // 1. Chuẩn bị ảnh
   const blobs=[];for(const c of billPages){const blob=await new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(Error('Không tạo được ảnh hóa đơn.')),'image/png'));blobs.push(blob)}
   if(!existingId){
    localStorage.setItem(operationKey+'-storage-check','1');localStorage.removeItem(operationKey+'-storage-check');
-  }
-  // 2. Bắt đầu tải ảnh thành công
-  for(let i=0;i<blobs.length;i++)download(blobs[i],'Hoa-don-'+invoice.code+(blobs.length>1?'-trang-'+(i+1):'')+'.png');
-  
-  if(!existingId){
-   // 3. Lưu vào máy chủ online (nếu đã đăng nhập) dùng RPC atomic chống trùng
+
+   // 2. Lưu vào máy chủ online (nếu đã đăng nhập) dùng RPC atomic chống trùng TRƯỚC
    if(typeof sync!=='undefined'&&sync.user){
     try{
      await sync.saveInvoice(invoice,businessMode);
@@ -54,7 +50,7 @@ $('billPng').onclick=async()=>{
     }
    }
 
-   // 4. Lưu vào localStorage và cập nhật bộ nhớ
+   // 3. Lưu vào localStorage và cập nhật bộ nhớ
    const raw=localStorage.getItem(operationKey),latest=raw?JSON.parse(raw):data;
    if(Array.isArray(latest.tx)&&Array.isArray(latest.products)){
     const next={...latest,invoices:[...(latest.invoices||[]),invoice],tx:[...latest.tx,...items]};
@@ -66,7 +62,11 @@ $('billPng').onclick=async()=>{
    const ids=new Set(items.map(t=>t.id));draft=draft.filter(t=>!ids.has(t.id));renderDraft();renderHistory();updatePartners();
    $('invoiceTitle').textContent='Hóa đơn đã lưu';if(typeof savedPaymentPanel==='function')savedPaymentPanel();
   }
-  toast(existingId?'Đã tạo lại ảnh hóa đơn; không lưu trùng.':'Đã tạo ảnh, bắt đầu tải và lưu hóa đơn vào lịch sử.');
+
+  // 4. Xuất / lưu ảnh trực tiếp vào Thư viện ảnh (trên điện thoại) hoặc tải về (trên máy tính)
+  await saveOrShareImage(blobs,'Hoa-don-'+invoice.code);
+
+  toast(existingId?'Đã tạo lại ảnh hóa đơn; không lưu trùng.':'Đã tạo ảnh và lưu hóa đơn vào lịch sử.');
  }catch(e){$('billError').textContent=(e.message||'Xuất ảnh không thành công.')+' Phiếu tạm được giữ để thử lại; chưa thêm lịch sử.'}
  finally{lockExport(false)}
 };

@@ -40,11 +40,8 @@ $('paymentForm').onsubmit=async e=>{
  try{
   // 1. Tạo ảnh phiếu thanh toán
   const pages=financialPages([attempt.invoice],'payment',attempt.event),blobs=await encodePages(pages);
-  
-  // 2. Tải ảnh thành công trước khi ghi nhận giao dịch
-  downloadPages(blobs,'Thanh-toan-'+attempt.event.code);
 
-  // 3. Nếu online và đã đăng nhập: Ghi nhận giao dịch nguyên tử lên Supabase (FOR UPDATE chống race condition)
+  // 2. Nếu online và đã đăng nhập: Ghi nhận giao dịch nguyên tử lên Supabase TRƯỚC (chống lỗi fetch khi tải ảnh trên mobile)
   if(typeof sync!=='undefined'&&sync.user){
    const srvRes=await sync.recordPayment(paymentInvoiceId,attempt.event);
    attempt.event.paidBefore=srvRes.paid_before;
@@ -52,7 +49,7 @@ $('paymentForm').onsubmit=async e=>{
    attempt.event.dueAfter=srvRes.due_after;
   }
 
-  // 4. Lưu bản sao vào localStorage và cập nhật bộ nhớ
+  // 3. Lưu bản sao vào localStorage và cập nhật bộ nhớ
   await ledgerLock(async()=>{
    const latest=latestLedger(operationKey);
    const inv=latest.invoices?.find(i=>i.id===paymentInvoiceId);
@@ -64,6 +61,9 @@ $('paymentForm').onsubmit=async e=>{
   },operationKey);
 
   paymentCommitted=true;const savedBalance=invoiceBalance(data.invoices.find(i=>i.id===paymentInvoiceId));$('paymentBalanceInfo').innerHTML=`<span>Tổng hóa đơn <b>${money(savedBalance.total)}</b></span><span>Tổng đã trả <b>${money(savedBalance.paid)}</b></span><span>Còn thiếu <b>${money(savedBalance.due)}</b></span>`;mountPages('paymentPreviewArea',pages);$('paymentTitle').textContent='Đã lưu phiếu thanh toán';$('paymentError').textContent='';renderHistory();savedPaymentPanel();updatePartners();
+
+  // 4. Xuất / lưu ảnh trực tiếp vào Thư viện ảnh (trên điện thoại) hoặc tải về (trên máy tính)
+  await saveOrShareImage(blobs,'Thanh-toan-'+attempt.event.code);
   toast('Đã xuất phiếu và ghi thanh toán vào hóa đơn gốc.');
  }catch(error){
   $('paymentError').textContent=paymentCommitted?'Thanh toán đã được lưu. Vui lòng đóng cửa sổ và tải lại trang để cập nhật hiển thị.':error.message+' Chưa ghi thanh toán, thông tin nhập vẫn được giữ.';
@@ -79,11 +79,11 @@ $('debtExport').onclick=()=>{
 };
 function reprintPayment(invoiceId,paymentId){try{data=latestLedger();const invoice=data.invoices.find(i=>i.id===invoiceId),event=invoice&&paymentEvents(invoice).find(p=>p.id===paymentId);if(!event)throw Error('Không tìm thấy phiếu thanh toán.');reportSpec={kind:'payment',invoices:[JSON.parse(JSON.stringify(invoice))],event:{...event},created:event.created};showFinancialReport()}catch(e){toast(e.message)}}
 function showFinancialReport(){reportPages=financialPages(reportSpec.invoices,reportSpec.kind,reportSpec.event);$('debtTitle').textContent=reportSpec.kind==='debt'?'Bảng công nợ đã chọn':'Xuất lại phiếu thanh toán';$('debtInfo').textContent=reportSpec.kind==='debt'?reportSpec.invoices.length+' hóa đơn · Còn thiếu '+money(reportSpec.invoices.reduce((s,i)=>s+invoiceBalance(i).due,0))+'. Xuất bảng này không ghi nhận thanh toán.':'Giữ số tiền và số còn thiếu tại đúng lần thanh toán này. Xuất lại không ghi trùng giao dịch.';$('debtError').textContent='';mountPages('debtPreviewArea',reportPages);$('debtDialog').showModal()}
-$('debtDownload').onclick=async()=>{if(reportBusy)return;reportBusy=true;$('debtDownload').disabled=true;try{if(reportSpec.kind==='debt'){data=latestLedger();const ids=new Set(reportSpec.invoices.map(i=>i.id));reportSpec.invoices=data.invoices.filter(i=>ids.has(i.id)&&customerKey(i.partner)===selectedCustomer&&invoiceBalance(i).due>0);if(!reportSpec.invoices.length)throw Error('Các hóa đơn đã được thanh toán đủ. Không còn công nợ để xuất.');reportPages=financialPages(reportSpec.invoices,'debt');mountPages('debtPreviewArea',reportPages);$('debtInfo').textContent=reportSpec.invoices.length+' hóa đơn · Còn thiếu '+money(reportSpec.invoices.reduce((s,i)=>s+invoiceBalance(i).due,0))}const blobs=await encodePages(reportPages);downloadPages(blobs,reportSpec.kind==='payment'?'Thanh-toan-'+reportSpec.event.code:'Bang-cong-no-'+today());toast('Đã xuất ảnh; không thay đổi công nợ.')}catch(e){$('debtError').textContent=e.message}finally{reportBusy=false;$('debtDownload').disabled=false}};
+$('debtDownload').onclick=async()=>{if(reportBusy)return;reportBusy=true;$('debtDownload').disabled=true;try{if(reportSpec.kind==='debt'){data=latestLedger();const ids=new Set(reportSpec.invoices.map(i=>i.id));reportSpec.invoices=data.invoices.filter(i=>ids.has(i.id)&&customerKey(i.partner)===selectedCustomer&&invoiceBalance(i).due>0);if(!reportSpec.invoices.length)throw Error('Các hóa đơn đã được thanh toán đủ. Không còn công nợ để xuất.');reportPages=financialPages(reportSpec.invoices,'debt');mountPages('debtPreviewArea',reportPages);$('debtInfo').textContent=reportSpec.invoices.length+' hóa đơn · Còn thiếu '+money(reportSpec.invoices.reduce((s,i)=>s+invoiceBalance(i).due,0))}const blobs=await encodePages(reportPages);await saveOrShareImage(blobs,reportSpec.kind==='payment'?'Thanh-toan-'+reportSpec.event.code:'Bang-cong-no-'+today());toast('Đã xuất ảnh; không thay đổi công nợ.')}catch(e){$('debtError').textContent=e.message}finally{reportBusy=false;$('debtDownload').disabled=false}};
 $('debtClose').onclick=()=>{if(!reportBusy)$('debtDialog').close()};$('debtDialog').addEventListener('cancel',e=>{if(reportBusy)e.preventDefault()});
 function mountPages(id,pages){const host=$(id);host.replaceChildren(...pages);host.hidden=false}
 async function encodePages(pages){const blobs=[];for(const c of pages){const blob=await new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(Error('Không tạo được ảnh. Vui lòng thử lại.')),'image/png'));blobs.push(blob)}return blobs}
-function downloadPages(blobs,name){for(let i=0;i<blobs.length;i++)download(blobs[i],name+(blobs.length>1?'-trang-'+(i+1):'')+'.png')}
+function downloadPages(blobs,name){if(typeof saveOrShareImage==='function'){saveOrShareImage(blobs,name)}else{for(let i=0;i<blobs.length;i++)download(blobs[i],name+(blobs.length>1?'-trang-'+(i+1):'')+'.png')}}
 
 // Paginated 9:16 report, with repeated invoice identity on continuation pages.
 function financialPages(invoices,kind,event){
