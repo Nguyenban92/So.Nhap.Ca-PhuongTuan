@@ -197,6 +197,10 @@ $('authRegisterForm').onsubmit=async e=>{
  }
 };
 
+$('syncNowButton').onclick=()=>{
+ if(typeof sync!=='undefined') sync.triggerMultiThreadSync();
+};
+
 $('syncUploadLocalButton').onclick=()=>{
  $('authMigrationBox').hidden=false;
  $('authDialog').showModal();
