@@ -76,3 +76,40 @@ ALTER TABLE public.invoices ADD CONSTRAINT invoices_created_by_fkey FOREIGN KEY 
 
 ALTER TABLE public.payments DROP CONSTRAINT IF EXISTS payments_created_by_fkey;
 ALTER TABLE public.payments ADD CONSTRAINT payments_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+
+-- TỰ ĐỘNG XÓA SẠCH 100% DỮ LIỆU CỦA TÀI KHOẢN (HÓA ĐƠN, THANH TOÁN, CÔNG NỢ) KHI TÀI KHOẢN BỊ XÓA
+CREATE OR REPLACE FUNCTION public.handle_delete_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_store_id UUID;
+  v_role TEXT;
+  v_other_members_count INT;
+BEGIN
+  SELECT store_id, role INTO v_store_id, v_role 
+  FROM public.profiles 
+  WHERE id = OLD.id;
+
+  IF v_store_id IS NOT NULL THEN
+    SELECT COUNT(*) INTO v_other_members_count 
+    FROM public.profiles 
+    WHERE store_id = v_store_id AND id <> OLD.id;
+
+    -- Nếu là chủ cơ sở HOẶC là tài khoản độc lập duy nhất của cơ sở:
+    -- XÓA TOÀN BỘ CƠ SỞ (Kéo theo ON DELETE CASCADE tự động xóa sạch toàn bộ hóa đơn, thanh toán, công nợ, mặt hàng)
+    IF v_role = 'owner' OR v_other_members_count = 0 THEN
+      DELETE FROM public.stores WHERE id = v_store_id;
+    END IF;
+  END IF;
+
+  RETURN OLD;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_deleted ON auth.users;
+CREATE TRIGGER on_auth_user_deleted
+  BEFORE DELETE ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_delete_user();

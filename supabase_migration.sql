@@ -530,6 +530,41 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
+-- TỰ ĐỘNG XÓA SẠCH DỮ LIỆU KHI TÀI KHOẢN BỊ XÓA (CASCADE TOÀN DIỆN)
+CREATE OR REPLACE FUNCTION public.handle_delete_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_store_id UUID;
+  v_role TEXT;
+  v_other_members_count INT;
+BEGIN
+  SELECT store_id, role INTO v_store_id, v_role 
+  FROM public.profiles 
+  WHERE id = OLD.id;
+
+  IF v_store_id IS NOT NULL THEN
+    SELECT COUNT(*) INTO v_other_members_count 
+    FROM public.profiles 
+    WHERE store_id = v_store_id AND id <> OLD.id;
+
+    IF v_role = 'owner' OR v_other_members_count = 0 THEN
+      DELETE FROM public.stores WHERE id = v_store_id;
+    END IF;
+  END IF;
+
+  RETURN OLD;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_deleted ON auth.users;
+CREATE TRIGGER on_auth_user_deleted
+  BEFORE DELETE ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_delete_user();
+
 -- 5. CẤP QUYỀN EXECUTE CHO CÁC HÀM RPC
 GRANT EXECUTE ON FUNCTION public.current_user_store_id() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.record_payment_atomic(TEXT, TEXT, TEXT, BIGINT, TEXT, TEXT, DATE, BIGINT) TO authenticated;
