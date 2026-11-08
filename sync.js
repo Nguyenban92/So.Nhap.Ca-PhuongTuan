@@ -125,7 +125,22 @@ const sync = {
 
       // Đọc dữ liệu server
       const srvInvoices = Array.isArray(res?.invoices) ? res.invoices : [];
-      const srvProducts = Array.isArray(res?.products) && res.products.length ? res.products : defaults.map(p => ({ ...p }));
+      let srvProducts = Array.isArray(res?.products) && res.products.length ? res.products : [];
+      if (srvProducts.length === 0 && this.store?.id && this.store.id !== 'default') {
+        try {
+          await this.client.from('products').upsert(
+            defaults.map(p => ({
+              store_id: this.store.id,
+              id: p.id,
+              name: p.name,
+              image: p.id + '.jpg'
+            }))
+          );
+        } catch(e) {}
+        srvProducts = defaults.map(p => ({ ...p }));
+      } else if (srvProducts.length === 0) {
+        srvProducts = defaults.map(p => ({ ...p }));
+      }
       const srvLegacy = Array.isArray(res?.legacy) ? res.legacy : [];
 
       // 2. Luồng đọc dữ liệu máy cục bộ (localStorage v24)
@@ -521,6 +536,8 @@ const sync = {
 
   async register(displayName, email, password, storeName = '', storeCode = 'AUTO') {
     if (!this.client) throw new Error('Chưa nạp thư viện Supabase');
+    const autoCode = 'CS-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+    const finalCode = (storeCode && storeCode !== 'AUTO') ? storeCode.trim().toUpperCase() : autoCode;
     const { data, error } = await this.client.auth.signUp({
       email: email.trim(),
       password: password,
@@ -528,7 +545,7 @@ const sync = {
         data: {
           display_name: displayName.trim(),
           store_name: (storeName || displayName).trim(),
-          store_code: (storeCode || 'AUTO').trim().toUpperCase()
+          store_code: finalCode
         }
       }
     });
