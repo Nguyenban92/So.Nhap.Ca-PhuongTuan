@@ -134,7 +134,8 @@ $('customerBack').onclick=()=>{selectedCustomer=null;selectedDebts.clear();histo
 // Auth & Multi-device Online Sync Handlers
 function openAuthDialog(){
  if(typeof sync!=='undefined'&&sync.user){
-  if(confirm(`Bạn đang đăng nhập cơ sở: ${sync.store?.name||'Đỗ Phương Tuấn'}\nTài khoản: ${sync.profile?.name||sync.user.email}\n\nBạn có muốn đăng xuất không?`)){
+  const msg=`Tài khoản quản lý: ${sync.profile?.name||sync.user.email}\nCơ sở: ${sync.store?.name||'ĐỖ PHƯƠNG TUẤN'} (Mã: ${sync.store?.code||''})\n\nCác thiết bị đăng nhập cùng tài khoản này sẽ tự động đồng bộ dữ liệu với nhau.\n\nBạn có muốn đăng xuất không?`;
+  if(confirm(msg)){
    sync.logout();
   }
   return;
@@ -146,6 +147,10 @@ function openAuthDialog(){
  $('authTabLogin').setAttribute('aria-selected','true');
  $('authTabRegister').setAttribute('aria-selected','false');
  $('authMigrationBox').hidden=true;
+ if($('toggleJoinStore')){
+  $('toggleJoinStore').checked=false;
+  $('joinStoreBox').hidden=true;
+ }
  $('authDialog').showModal();
 }
 
@@ -166,6 +171,10 @@ $('authTabRegister').onclick=()=>{
  $('authTabRegister').setAttribute('aria-selected','true');
 };
 
+$('toggleJoinStore').onchange=e=>{
+ $('joinStoreBox').hidden=!e.target.checked;
+};
+
 $('authLoginForm').onsubmit=async e=>{
  e.preventDefault();
  const email=$('loginEmail').value.trim(),pass=$('loginPassword').value;
@@ -173,7 +182,7 @@ $('authLoginForm').onsubmit=async e=>{
  try{
   await sync.login(email,pass);
   $('authDialog').close();
-  toast('Đăng nhập thành công vào cơ sở: '+(sync.store?.name||'ĐỖ PHƯƠNG TUẤN'));
+  toast('Đăng nhập thành công! Cơ sở: '+(sync.store?.name||'ĐỖ PHƯƠNG TUẤN'));
  }catch(err){
   $('loginError').textContent=err.message||'Đăng nhập thất bại. Kiểm tra email và mật khẩu.';
  }
@@ -181,15 +190,16 @@ $('authLoginForm').onsubmit=async e=>{
 
 $('authRegisterForm').onsubmit=async e=>{
  e.preventDefault();
- const name=$('regName').value.trim(),email=$('regEmail').value.trim(),pass=$('regPassword').value,storeCode=$('regStoreCode').value.trim();
- $('regError').textContent='Đang đăng ký tài khoản…';
+ const name=$('regName').value.trim(),storeName=$('regStoreName').value.trim()||name,email=$('regEmail').value.trim(),pass=$('regPassword').value;
+ const joinExisting=$('toggleJoinStore').checked,storeCode=joinExisting?$('regStoreCode').value.trim():'AUTO';
+ $('regError').textContent='Đang tạo tài khoản quản lý cơ sở…';
  try{
-  const res=await sync.register(name,email,pass,storeCode);
+  const res=await sync.register(name,email,pass,storeName,storeCode);
   if(res.session){
    $('authDialog').close();
-   toast('Đã tạo tài khoản và tham gia cơ sở thành công!');
+   toast('Đã tạo tài khoản quản lý cơ sở độc lập thành công!');
   }else{
-   $('regError').textContent='Tài khoản đã tạo. Nếu bật xác nhận email, vui lòng kiểm tra hộp thư hoặc đăng nhập ngay.';
+   $('regError').textContent='Tài khoản đã tạo. Vui lòng kiểm tra hộp thư hoặc đăng nhập ngay.';
    setTimeout(()=>$('authTabLogin').click(),2000);
   }
  }catch(err){

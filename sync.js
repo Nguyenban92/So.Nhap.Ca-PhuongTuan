@@ -144,10 +144,12 @@ const sync = {
         const cloudIds = new Set(cloudInvs.map(i => i.id));
         const cloudCodes = new Set(cloudInvs.map(i => i.code));
 
-        if (Array.isArray(localSource.invoices)) {
+        // CHỈ HỢP NHẤT TỪ BỘ NHỚ LOCAL NẾU ĐÂY LÀ CƠ SỞ GỐC DOPHƯONGTUAN
+        // Với các tài khoản quản lý mới độc lập, chỉ đọc dữ liệu riêng của tài khoản đó từ Cloud!
+        if (this.store?.code === 'DOPHƯONGTUAN' && Array.isArray(localSource.invoices)) {
           for (const locInv of localSource.invoices) {
             if (!cloudIds.has(locInv.id) && !cloudCodes.has(locInv.code)) {
-              mergedInvs.push(locInv); // Giữ lại hóa đơn local để đẩy lên cloud
+              mergedInvs.push(locInv);
             }
           }
         }
@@ -474,6 +476,9 @@ const sync = {
       invoices: current.invoices || [],
       tx: current.tx || []
     };
+    if (typeof $ === 'function' && $('billSeller') && this.store?.name) {
+      $('billSeller').value = this.store.name;
+    }
     if (typeof renderProducts === 'function') renderProducts();
     if (typeof renderHistory === 'function') renderHistory();
     if (typeof updatePartners === 'function') updatePartners();
@@ -482,9 +487,27 @@ const sync = {
 
   saveOfflineCache() {
     try {
-      localStorage.setItem('soca-cloud-cache-purchase', JSON.stringify(this.stores.purchase));
-      localStorage.setItem('soca-cloud-cache-sales', JSON.stringify(this.stores.sales));
-      localStorage.setItem('soca-cloud-store', JSON.stringify({ store: this.store, profile: this.profile }));
+      const uid = this.user ? this.user.id : 'guest';
+      localStorage.setItem(`soca-cache-${uid}-purchase`, JSON.stringify(this.stores.purchase));
+      localStorage.setItem(`soca-cache-${uid}-sales`, JSON.stringify(this.stores.sales));
+      localStorage.setItem(`soca-cache-${uid}-store`, JSON.stringify({ store: this.store, profile: this.profile }));
+    } catch (e) {}
+  },
+
+  loadOfflineCache() {
+    try {
+      const uid = this.user ? this.user.id : 'guest';
+      const p = localStorage.getItem(`soca-cache-${uid}-purchase`);
+      const s = localStorage.getItem(`soca-cache-${uid}-sales`);
+      const st = localStorage.getItem(`soca-cache-${uid}-store`);
+      if (p) this.stores.purchase = JSON.parse(p);
+      if (s) this.stores.sales = JSON.parse(s);
+      if (st) {
+        const parsed = JSON.parse(st);
+        this.store = parsed.store;
+        this.profile = parsed.profile;
+      }
+      this.applyStoreToActiveData();
     } catch (e) {}
   },
 
@@ -494,6 +517,27 @@ const sync = {
       btn.style.transform = 'scale(1.18)';
       setTimeout(() => { btn.style.transform = 'scale(1)'; }, 300);
     }
+  },
+
+  async register(displayName, email, password, storeName = '', storeCode = 'AUTO') {
+    if (!this.client) throw new Error('Chưa nạp thư viện Supabase');
+    const { data, error } = await this.client.auth.signUp({
+      email: email.trim(),
+      password: password,
+      options: {
+        data: {
+          display_name: displayName.trim(),
+          store_name: (storeName || displayName).trim(),
+          store_code: (storeCode || 'AUTO').trim().toUpperCase()
+        }
+      }
+    });
+    if (error) throw error;
+    if (data?.user && data?.session) {
+      this.user = data.user;
+      await this.loadInitialData();
+    }
+    return data;
   },
 
   async login(email, password) {
@@ -517,6 +561,10 @@ const sync = {
     this.unsubscribeRealtime();
     this.updateStatusUI('unauth', 'Đã đăng xuất');
     
+    // Đặt lại dữ liệu bộ nhớ về ban đầu, không để sót hóa đơn của tài khoản cũ
+    this.stores.purchase = { products: defaults.map(p => ({ ...p })), invoices: [], tx: [] };
+    this.stores.sales = { products: defaults.map(p => ({ ...p })), invoices: [], tx: [] };
+
     const loaded = loadBusinessData();
     data = loaded.data;
     storageReady = loaded.ready;
@@ -524,7 +572,7 @@ const sync = {
     renderDraft();
     renderHistory();
     updatePartners();
-    toast('Đã đăng xuất. Đang dùng dữ liệu cục bộ trên máy này.');
+    toast('Đã đăng xuất.');
   },
 
   updateStatusUI(status, message) {

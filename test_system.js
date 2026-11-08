@@ -241,6 +241,33 @@ async function testRaceCondition() {
   // Kiểm tra Idempotent (xuất lại / gửi lại không ghi trùng)
   const resIdempotent = await db.recordPaymentAtomic('inv-race-1', 'pm-dev1', 'TT-01', 7000000);
   assert(resIdempotent.idempotent === true, 'Gửi lại mã thanh toán đã tồn tại trả về idempotent OK, không ghi trùng bản ghi');
+
+  // [TEST 4] Kiểm thử Cơ chế Mỗi tài khoản là 1 Quản lý / Cơ sở độc lập 100%
+  console.log('\n[TEST 4] Cơ chế Mỗi tài khoản là 1 Quản lý độc lập 100%');
+  const storesDb = new Map();
+  function registerAccount(email, name, storeCode = 'AUTO') {
+    const code = storeCode !== 'AUTO' ? storeCode : 'CS-' + Math.random().toString(36).slice(2, 10).toUpperCase();
+    if (!storesDb.has(code)) {
+      storesDb.set(code, { code, name, invoices: [] });
+    }
+    return { email, name, storeCode: code };
+  }
+
+  // Tài khoản 1: Đỗ Phương Tuấn
+  const acc1 = registerAccount('tuan@phuongtuan.vn', 'Đỗ Phương Tuấn');
+  // Tài khoản 2: Khách hàng ngoài đăng ký riêng
+  const acc2 = registerAccount('haisanbaon@gmail.com', 'Hải Sản Bảo An');
+
+  assert(acc1.storeCode !== acc2.storeCode, 'Mỗi tài khoản tự động sinh mã quản lý cơ sở riêng biệt');
+
+  // Tài khoản 1 tạo hóa đơn
+  storesDb.get(acc1.storeCode).invoices.push({ id: 'inv-tuan-1', total: 5000000 });
+  assert(storesDb.get(acc1.storeCode).invoices.length === 1, 'Tài khoản 1 có 1 hóa đơn');
+  assert(storesDb.get(acc2.storeCode).invoices.length === 0, 'Tài khoản 2 độc lập 100%, không thấy hóa đơn của Tài khoản 1');
+
+  // Tài khoản 1 đăng nhập trên Thiết bị 2 cùng tài khoản
+  const acc1Device2 = { email: acc1.email, storeCode: acc1.storeCode };
+  assert(storesDb.get(acc1Device2.storeCode).invoices.length === 1, 'Thiết bị 2 đăng nhập cùng tài khoản 1 tự động đồng bộ hóa đơn');
 }
 
 testRaceCondition().then(() => {

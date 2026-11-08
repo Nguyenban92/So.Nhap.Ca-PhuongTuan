@@ -121,6 +121,9 @@ header{padding:22px 0}button:disabled{opacity:.5;cursor:default}.draft-panel{mar
 .auth-form label{display:block;margin-bottom:14px;font-size:13px;font-weight:600;color:#35563d}
 .auth-form input{width:100%;margin-top:7px;font-size:15px;padding:10px}
 .auth-submit{width:100%;padding:14px;font-size:15px;font-weight:700;margin-top:10px;min-height:48px}
+.store-code-toggle{margin:10px 0 14px;padding:10px 12px;background:#f5f8f5;border:1px solid #d5e0d4;border-radius:6px}
+.checkbox-label{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#35563d;cursor:pointer}
+.checkbox-label input{width:18px;height:18px;accent-color:#2d6a4f;margin:0}
 .migration-box{margin-top:20px;padding:16px;background:#fff8ee;border:1px solid #e7d5be;border-radius:8px}
 .migration-box h3{margin:0 0 8px;font-size:15px;color:#855013}
 .migration-box p{margin:0 0 12px;font-size:12px;color:#775b32;line-height:1.5}
