@@ -1,6 +1,6 @@
 // ==============================================================================
 // SYNC.JS - SUPABASE ONLINE SYNC & REALTIME QUẢN LÝ CƠ SỞ CÁ ĐỖ PHƯƠNG TUẤN
-// Tách biệt tuyệt đối Nhập Hàng & Bán Hàng, Giao dịch nguyên tử, Chống trùng lặp
+// Tự động đồng bộ hóa đơn cũ, Tách biệt Nhập/Bán, Giao dịch nguyên tử, Realtime
 // ==============================================================================
 
 const SUPABASE_CONFIG = {
@@ -16,6 +16,7 @@ const sync = {
   isOnline: navigator.onLine,
   isSyncing: false,
   realtimeChannel: null,
+  pollTimer: null,
   
   // Cache dữ liệu server theo nghiệp vụ
   stores: {
@@ -53,11 +54,19 @@ const sync = {
 
     // Lắng nghe khi tab active trở lại
     window.addEventListener('focus', () => {
-      if (this.user && this.isOnline) this.fetchLatest();
+      if (this.user && this.isOnline) this.fetchLatestSilent();
     });
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden && this.user && this.isOnline) this.fetchLatest();
+      if (!document.hidden && this.user && this.isOnline) this.fetchLatestSilent();
     });
+
+    // Tự động kiểm tra đồng bộ ngầm mỗi 10 giây (đảm bảo 2 máy luôn khớp nhau cả khi rớt websocket)
+    if (this.pollTimer) clearInterval(this.pollTimer);
+    this.pollTimer = setInterval(() => {
+      if (this.user && this.isOnline && !this.isSyncing) {
+        this.fetchLatestSilent();
+      }
+    }, 10000);
 
     // Lắng nghe Auth state
     this.client.auth.onAuthStateChange(async (event, session) => {
@@ -136,6 +145,9 @@ const sync = {
         .filter(l => l.business_type === 'sales')
         .map(l => l.data);
 
+      // TỰ ĐỘNG ĐẨY DỮ LIỆU CŨ TỪ MÁY NÀY LÊN MÁY CHỦ NẾU CHƯA ĐỒNG BỘ
+      await this.autoSyncLocalDataIfAny();
+
       // Cập nhật bộ nhớ data hiện tại theo businessMode đang chọn
       this.applyStoreToActiveData();
 
@@ -146,13 +158,77 @@ const sync = {
       this.subscribeRealtime();
 
       this.updateStatusUI('online', `Đã đồng bộ · Cơ sở: ${this.store.name}`);
-      toast(`Đã kết nối online: ${this.store.name} (${this.profile.name || this.user.email})`);
     } catch (e) {
       console.error('Load initial data error:', e);
       this.updateStatusUI('error', 'Lỗi đồng bộ: ' + (e.message || ''));
-      toast('Không thể tải dữ liệu online, đang dùng dữ liệu lưu tạm trên máy.');
+      toast('Không thể kết nối máy chủ, đang dùng dữ liệu lưu tạm trên máy.');
     } finally {
       this.isSyncing = false;
+    }
+  },
+
+  // Tự động kiểm tra và chuyển dữ liệu cũ lên Supabase trong nền (không làm phiền người dùng)
+  async autoSyncLocalDataIfAny() {
+    try {
+      let needsSync = false;
+      for (const [bMode, key] of [['purchase', 'soca-v1'], ['sales', 'soca-sales-v1']]) {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed.invoices)) {
+            const hasNew = parsed.invoices.some(localInv => 
+              !this.stores[bMode].invoices.some(srvInv => srvInv.id === localInv.id || srvInv.code === localInv.code)
+            );
+            if (hasNew) needsSync = true;
+          }
+        }
+      }
+
+      if (needsSync) {
+        console.log('Phát hiện hóa đơn cũ chưa có trên máy chủ, đang tự động đồng bộ lên…');
+        const stats = await this.uploadLocalDataToServer(true);
+        if (stats.invoices > 0) {
+          toast(`Đã tự động đồng bộ ${stats.invoices} hóa đơn từ máy này lên máy chủ cho các thiết bị khác xem.`);
+        }
+      }
+    } catch (err) {
+      console.warn('Auto sync local data error:', err);
+    }
+  },
+
+  // Đồng bộ ngầm không hiện thông báo
+  async fetchLatestSilent() {
+    if (!this.user || !this.client || this.isSyncing) return;
+    try {
+      const { data: res, error } = await this.client.rpc('get_store_initial_state');
+      if (error || !res || !res.authenticated) return;
+
+      const allInvoices = Array.isArray(res.invoices) ? res.invoices : [];
+      let changed = false;
+
+      for (const bMode of ['purchase', 'sales']) {
+        const serverInvs = allInvoices
+          .filter(i => i.business_type === bMode)
+          .map(i => this.normalizeInvoiceFromDb(i));
+        
+        // So sánh độ dài hoặc mã hóa đơn
+        if (serverInvs.length !== this.stores[bMode].invoices.length || 
+            JSON.stringify(serverInvs.map(i => [i.id, i.payments.length])) !== JSON.stringify(this.stores[bMode].invoices.map(i => [i.id, i.payments.length]))) {
+          this.stores[bMode].invoices = serverInvs;
+          changed = true;
+        }
+
+        if (Array.isArray(res.products) && res.products.length) {
+          this.stores[bMode].products = res.products.map(p => ({ ...p }));
+        }
+      }
+
+      if (changed) {
+        this.applyStoreToActiveData();
+        this.saveOfflineCache();
+      }
+    } catch (err) {
+      console.warn('Fetch silent error:', err);
     }
   },
 
@@ -264,7 +340,6 @@ const sync = {
       const targetStore = this.stores[bType];
       if (!targetStore) return;
 
-      // Kiểm tra trùng
       if (!targetStore.invoices.some(i => i.id === row.id || i.code === row.code)) {
         const inv = this.normalizeInvoiceFromDb({ ...row, payments: [] });
         targetStore.invoices.unshift(inv);
@@ -280,7 +355,6 @@ const sync = {
   handleRealtimePayment(payload) {
     if (payload.eventType === 'INSERT') {
       const p = payload.new;
-      // Tìm hóa đơn ở cả 2 tab
       for (const bType of ['purchase', 'sales']) {
         const inv = this.stores[bType].invoices.find(i => i.id === p.invoice_id);
         if (inv) {
@@ -380,11 +454,9 @@ const sync = {
     });
 
     if (error) {
-      // Bắt lỗi race condition từ PostgreSQL: Số tiền thanh toán vượt quá số còn thiếu
       throw new Error(error.message || 'Lỗi ghi nhận thanh toán trên máy chủ');
     }
 
-    // Cập nhật vào store bộ nhớ
     for (const bMode of ['purchase', 'sales']) {
       const inv = this.stores[bMode].invoices.find(i => i.id === invoiceId);
       if (inv && !inv.payments.some(p => p.id === event.id)) {
@@ -436,7 +508,7 @@ const sync = {
   },
 
   // ĐỒNG BỘ DỮ LIỆU CŨ TỪ LOCALSTORAGE LÊN MÁY CHỦ (KIỂM TRA TRÙNG, KHÔNG XÓA DỮ LIỆU GỐC)
-  async uploadLocalDataToServer() {
+  async uploadLocalDataToServer(isSilent = false) {
     if (!this.user || !this.client || !this.store) {
       throw new Error('Bạn cần đăng nhập vào cơ sở trước khi chuyển dữ liệu.');
     }
@@ -466,7 +538,9 @@ const sync = {
     }
 
     // Tải lại state mới nhất sau khi migrate
-    await this.loadInitialData();
+    if (!isSilent) {
+      await this.loadInitialData();
+    }
 
     return stats;
   },
@@ -559,7 +633,6 @@ const sync = {
     });
     if (error) throw error;
 
-    // Nếu Supabase tự động đăng nhập sau khi sign up
     if (data.session) {
       this.user = data.user;
       await this.loadInitialData();
