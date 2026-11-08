@@ -1,42 +1,74 @@
-# Sổ Xuất Nhập Cá - Đỗ Phương Tuấn
+# Sổ Xuất Nhập Cá – Đỗ Phương Tuấn (v24 Online Sync)
 
-Web dùng trên điện thoại, không cần cài thư viện hoặc chạy lệnh build.
+Ứng dụng quản lý xuất nhập cá, hóa đơn, thanh toán nhiều lần và công nợ cơ sở Đỗ Phương Tuấn. Phiên bản nâng cấp hỗ trợ **Đồng bộ Online thời gian thực (Supabase)** cho nhiều điện thoại trong cùng cơ sở, giao dịch nguyên tử chống vượt công nợ, và tách biệt hoàn toàn giữa Nhập Hàng và Bán Hàng.
 
-## Đưa lên GitHub Pages
+---
 
-1. Giải nén file ZIP.
-2. Tạo repository GitHub, ví dụ `so-ca-phuong-tuan` (chọn Public nếu dùng GitHub Free).
-3. Chọn Add file → Upload files. Tải toàn bộ FILE ĐÃ GIẢI NÉN lên repository, không tải nguyên file ZIP. `index.html` phải nằm ngay ở thư mục gốc, cùng các file `.js`, `.css` và ảnh `.jpg`.
-4. Commit changes để lưu.
-5. Vào Settings → Pages. Trong Source, chọn Deploy from a branch; Branch chọn `main`, thư mục `/(root)`, rồi Save.
-6. Chờ triển khai xong và mở Visit site ở trang Pages.
+## 🌟 ĐIỂM NỔI BẬT BẢN NÂNG CẤP ONLINE
+1. **Nhiều điện thoại cùng cơ sở**: Tất cả điện thoại của nhân viên và quản lý đăng nhập chung mã cơ sở `DOPHƯONGTUAN` sẽ thấy chung danh mục cá, khách hàng, hóa đơn và công nợ tức thời.
+2. **Đồng bộ Realtime**: Khi máy A xuất hóa đơn hoặc ghi thanh toán, máy B sẽ cập nhật ngay lập tức mà không làm mất phiếu tạm đang gõ dở.
+3. **Giao dịch nguyên tử (Atomic Transaction)**: Dùng khóa hàng `FOR UPDATE` trong PostgreSQL. Khi hai điện thoại cùng bấm thanh toán một hóa đơn tại cùng một thời điểm, hệ thống đảm bảo số tiền thanh toán **không bao giờ vượt quá số còn thiếu**.
+4. **Tách biệt tuyệt đối Nhập Hàng & Bán Hàng**: Kể cả khi trùng tên khách hàng, dữ liệu hóa đơn, thanh toán và công nợ của hai tab hoàn toàn độc lập 100%.
+5. **Chống ghi trùng (Idempotent)**: Xuất lại hóa đơn hoặc in lại phiếu thanh toán cũ không bao giờ tạo thêm bản ghi rác. Chỉ ghi dữ liệu sau khi tạo ảnh thành công và bắt đầu tải.
+6. **Bảo tồn dữ liệu cũ**: Tích hợp tính năng "Đẩy dữ liệu cũ lên Online" có kiểm tra trùng, tuyệt đối không tự xóa dữ liệu gốc trong máy.
+7. **Bảo mật RLS (Row Level Security)**: Không mở dữ liệu cho người chưa đăng nhập. Người ngoài không xem được dữ liệu cơ sở.
 
-Tài liệu chính thức: https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site
+---
 
-## Sử dụng
+## 🛠️ HƯỚNG DẪN THIẾT LẬP SUPABASE (CHỈ LÀM 1 LẦN)
 
-- Chọn ngày nhận, điền tên người giao.
-- Nhập số thùng (mặc định) hoặc kg. Quy cách 1 thùng = 17 kg.
-- Nhập giá 1 thùng. Số 100000 tự hiển thị 100.000.
-- Bấm Ghi nhận hàng trên từng loại cá. Mỗi lần nhận lưu riêng ngày, người giao, số lượng, đơn vị, giá và ghi chú.
-- Bấm nút cam HÓA ĐƠN / XUẤT ẢNH để xem toàn bộ lần nhận trong ngày đang chọn. Hóa đơn tự tính thành tiền từng dòng và tổng cuối.
-- Ảnh hóa đơn là PNG 900 × 1600 (9:16). Nhiều hơn 4 lần nhận sẽ chia thành nhiều trang. Trình duyệt có thể hỏi cho phép tải nhiều file; cho phép để nhận đủ trang, hoặc dùng In / Lưu PDF.
-- Lịch sử mặc định là tháng hiện tại. Dùng Tra cứu tháng cũ để xem tháng trước.
-- Dùng Sao lưu định kỳ; Khôi phục để nhập lại file JSON đã sao lưu.
+### Bước 1: Chạy Migration SQL
+1. Mở trang quản trị Supabase: [https://supabase.com/dashboard/project/klhjykgjbgmmpqyiyrlq](https://supabase.com/dashboard/project/klhjykgjbgmmpqyiyrlq)
+2. Chọn mục **SQL Editor** ở thanh menu bên trái.
+3. Bấm **New query** và mở file `supabase_migration.sql` trong mã nguồn.
+4. Copy toàn bộ nội dung file `supabase_migration.sql`, dán vào SQL Editor rồi bấm **Run** (chạy).
+   *(Đoạn script này sẽ tự động tạo bảng `stores`, `profiles`, `products`, `invoices`, `payments`, `legacy_tx`, thiết lập khóa ngoại, RLS, cấp quyền GRANTS và khởi tạo cơ sở mặc định `DOPHƯONGTUAN`)*.
 
-## Dữ liệu
+### Bước 2: Tắt xác thực email để đăng ký vào dùng ngay
+1. Trong Supabase Dashboard, vào menu **Authentication** -> **Providers** -> bấm vào **Email**.
+2. Tìm dòng **Confirm email** và chuyển sang **OFF** (Tắt).
+3. Bấm **Save**.
+   *(Điều này giúp các máy khi bấm Đăng ký tài khoản mới có thể vào dùng ngay mà không cần chờ mở email xác nhận)*.
 
-Gói ZIP không chứa lịch sử hoặc dữ liệu thử. Dữ liệu phát sinh được lưu trên trình duyệt/thiết bị đang dùng (localStorage), không tự đồng bộ giữa các điện thoại và không được đưa lên repository. Không có đăng nhập hoặc máy chủ dữ liệu trong bản GitHub Pages này. Nếu chuyển từ website cũ sang địa chỉ GitHub Pages, hãy Sao lưu ở website cũ rồi Khôi phục tại địa chỉ mới.
+---
 
-Xóa dữ liệu trình duyệt sẽ xóa lịch sử nếu chưa sao lưu. Nút Xóa dữ liệu để test sẽ đưa sổ về trạng thái trống.
+## 📱 HƯỚNG DẪN SỬ DỤNG NHIỀU ĐIỆN THOẠI
 
-## Thành phần
+### 1. Đăng ký tài khoản cho các điện thoại
+- Trên bất kỳ điện thoại nào, bấm nút **Đăng nhập Online** ở góc trên màn hình.
+- Chọn tab **Đăng Ký Thành Viên**:
+  - Nhập **Họ và Tên** (ví dụ: *Đỗ Phương Tuấn* hoặc *Nhân viên A*).
+  - Nhập **Email** và **Mật khẩu**.
+  - Ô **Mã Cơ Sở** để mặc định là `DOPHƯONGTUAN`.
+  - Bấm **TẠO TÀI KHOẢN VÀ VÀO CƠ SỞ**.
+- Mọi điện thoại nhập chung mã cơ sở `DOPHƯONGTUAN` sẽ tự động liên kết vào cùng một cơ sở và thấy chung toàn bộ dữ liệu.
 
-- index.html: giao diện.
-- style.css: bố cục điện thoại, định dạng in.
-- app.js: nhận hàng, lịch sử, tính tiền, Excel, sao lưu.
-- invoice.js: vẽ và xuất hóa đơn PNG, in/PDF.
-- xlsx.min.js: SheetJS Community Edition 0.20.3, giữ nguyên thông báo giấy phép trong mã.
-- ca-nuc.jpg, ca-chi.jpg, ca-ngan.jpg: ảnh sản phẩm.
+### 2. Chuyển dữ liệu cũ từ máy lên Online (nếu có)
+- Sau khi đăng nhập, nếu trên máy này đã có sẵn dữ liệu v24 cũ (trong localStorage), bấm nút màu cam **Đẩy dữ liệu cũ lên Online**.
+- Hệ thống sẽ tự động quét hóa đơn, thanh toán và danh mục cá cũ để chuyển lên máy chủ cho các điện thoại khác cùng thấy.
+- Dữ liệu trên máy gốc được giữ nguyên vẹn 100%.
 
-SheetJS: https://sheetjs.com/ — https://github.com/SheetJS/sheetjs
+---
+
+## 🍏 HƯỚNG DẪN CÀI ĐẶT TRÊN IPHONE / IOS (ESign / PWA)
+
+### Cách 1: Cài dạng Ứng dụng Toàn màn hình PWA (Khuyên dùng - Không lo chứng chỉ hết hạn)
+1. Mở trình duyệt Safari trên iPhone và truy cập vào link web GitHub Pages của bạn.
+2. Bấm vào nút **Chia sẻ** (biểu tượng hình vuông có mũi tên trỏ lên ở thanh dưới Safari).
+3. Cuộn xuống và chọn **"Thêm vào Màn hình chính" (Add to Home Screen)**.
+4. Bấm **Thêm**.
+   👉 Ngay lập tức một biểu tượng app **Sổ Cá P.Tuấn** với logo chuẩn sẽ xuất hiện trên màn hình iPhone, bấm vào mở toàn màn hình độc lập như app native!
+
+### Cách 2: Tải IPA và ký bằng ESign
+1. Dự án đã cấu hình sẵn GitHub Actions tại `.github/workflows/build-ios.yml`.
+2. Khi push code lên GitHub, vào tab **Actions** -> Chọn workflow **Build iOS IPA Package** -> Bấm **Run workflow**.
+3. Sau khi máy ảo macOS build xong, tải file `SoCaPhuongTuan_Unsigned.ipa` về điện thoại.
+4. Mở ứng dụng **ESign** trên iPhone -> Nhập chứng chỉ cá nhân của bạn -> Chọn file IPA vừa tải và ký rồi cài đặt.
+
+---
+
+## 🔒 AN TOÀN & BẢO TOÀN DỮ LIỆU
+- Giữ nguyên giao diện, màu sắc, font chữ và ảnh hóa đơn tinh gọn của bản v24.
+- Không có chức năng xóa lịch sử (append-only), mọi giao dịch chỉ được thêm mới.
+- Dòng thời gian thanh toán được lưu vết chi tiết từng lần trả.
+- Tự động bắt ngày hiện tại theo múi giờ Việt Nam (`Asia/Ho_Chi_Minh`).

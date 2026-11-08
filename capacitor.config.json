@@ -1,0 +1,15 @@
+{
+  "appId": "vn.phuongtuan.soca",
+  "appName": "Sổ Cá P.Tuấn",
+  "webDir": ".",
+  "bundledWebRuntime": false,
+  "ios": {
+    "contentInset": "automatic",
+    "allowsLinkPreview": false,
+    "scrollEnabled": true,
+    "preferredContentMode": "mobile"
+  },
+  "server": {
+    "cleartext": true
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "Sổ Xuất Nhập Cá - Đỗ Phương Tuấn",
+  "short_name": "Sổ Cá P.Tuấn",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f1f4f0",
+  "theme_color": "#203b30",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "logo-ptuan.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
