@@ -121,6 +121,12 @@ const sync = {
       
       // Khởi tạo thông tin cơ sở
       this.store = res?.store || { id: 'default', name: 'ĐỖ PHƯƠNG TUẤN', code: 'DOPHUONGTUAN' };
+      if (this.store && this.store.code === 'DOPHƯONGTUAN') {
+        this.store.code = 'DOPHUONGTUAN';
+        try {
+          await this.client.from('stores').update({ code: 'DOPHUONGTUAN' }).eq('id', this.store.id);
+        } catch(e) {}
+      }
       this.profile = res?.user || { id: this.user.id, name: this.user.email?.split('@')[0] || 'Thành viên' };
 
       // Đọc dữ liệu server
