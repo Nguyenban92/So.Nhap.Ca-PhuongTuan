@@ -198,7 +198,14 @@ $('authRegisterForm').onsubmit=async e=>{
 };
 
 $('syncNowButton').onclick=()=>{
- if(typeof sync!=='undefined') sync.triggerMultiThreadSync();
+ if(typeof sync!=='undefined'){
+  if(!sync.user){
+   toast('Vui lòng đăng nhập để đồng bộ giữa các máy.');
+   openAuthDialog();
+  }else{
+   sync.triggerMultiThreadSync();
+  }
+ }
 };
 
 $('syncUploadLocalButton').onclick=()=>{

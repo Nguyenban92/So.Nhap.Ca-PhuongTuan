@@ -13,7 +13,7 @@ function latestLedger(key=storageKey()){
 function ledgerLock(task,key=storageKey()){return typeof navigator!=='undefined'&&navigator.locks?navigator.locks.request(key+'-ledger',task):task()}
 function savedPaymentPanel(){
  const invoice=data.invoices.find(i=>i.id===historyInvoiceId),panel=$('savedPaymentPanel');panel.hidden=!invoice;if(!invoice)return;
- const b=invoiceBalance(invoice);panel.innerHTML=`<span class="payment-status ${b.status}">${statusName(invoice)}</span><div class="payment-balance"><span>Đã trả <b>${money(b.paid)}</b></span><span>Còn thiếu <b>${money(b.due)}</b></span></div>${b.due>0?'<div class="record-actions"><button type="button" id="savedAddPayment">Xuất hóa đơn thanh toán</button><button type="button" id="savedSettle">Đã Thanh Toán</button></div>':''}`;
+ const b=invoiceBalance(invoice);panel.innerHTML=`<span class="payment-status ${b.status}">${statusName(invoice)}</span><div class="payment-balance"><span>Đã trả <b>${money(b.paid)}</b></span><span>Còn thiếu <b>${money(b.due)}</b></span></div>${b.due>0?'<div class="record-actions"><button type="button" id="savedAddPayment">Trả Trước</button><button type="button" id="savedSettle">Đã Thanh Toán</button></div>':''}`;
  if(b.due>0){$('savedAddPayment').onclick=()=>{if(!exporting)openPayment(invoice.id)};$('savedSettle').onclick=()=>{if(!exporting)openPayment(invoice.id,true)}}
 }
 function openPayment(id,settle=false){

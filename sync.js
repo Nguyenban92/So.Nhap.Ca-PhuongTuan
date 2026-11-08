@@ -489,10 +489,11 @@ const sync = {
   },
 
   flashSyncIndicator() {
-    const badge = $('syncStatusBadge');
-    if (!badge) return;
-    badge.style.transform = 'scale(1.1)';
-    setTimeout(() => { badge.style.transform = 'scale(1)'; }, 300);
+    const btn = $('syncNowButton');
+    if (btn) {
+      btn.style.transform = 'scale(1.18)';
+      setTimeout(() => { btn.style.transform = 'scale(1)'; }, 300);
+    }
   },
 
   async login(email, password) {
@@ -527,33 +528,39 @@ const sync = {
   },
 
   updateStatusUI(status, message) {
-    const bar = $('syncStatusBadge');
-    const userLabel = $('syncUserLabel');
     const btnAuth = $('syncAuthButton');
+    const authText = $('syncAuthText');
     const btnSyncNow = $('syncNowButton');
 
-    if (!bar) return;
+    if (btnSyncNow) {
+      btnSyncNow.hidden = false;
+    }
 
     if (status === 'online') {
       const invCount = (this.stores.purchase.invoices.length || 0) + (this.stores.sales.invoices.length || 0);
-      bar.className = 'sync-badge sync-online';
-      bar.innerHTML = '<span class="status-dot"></span> Đã kết nối';
-      if (userLabel) userLabel.textContent = `Cơ sở: ${this.store?.name || 'ĐỖ PHƯƠNG TUẤN'} · ${invCount} hóa đơn đồng bộ`;
-      if (btnAuth) btnAuth.textContent = 'Đăng xuất';
-      if (btnSyncNow) btnSyncNow.hidden = false;
+      if (btnAuth) {
+        btnAuth.classList.add('is-online');
+        btnAuth.classList.remove('is-offline');
+        btnAuth.title = `Cơ sở: ${this.store?.name || 'ĐỖ PHƯƠNG TUẤN'} (${this.profile?.name || this.user?.email || ''}) · ${invCount} hóa đơn đồng bộ. Bấm để đăng xuất.`;
+      }
+      if (authText) authText.textContent = 'Đăng xuất';
+      if (btnSyncNow) btnSyncNow.classList.remove('spinning');
     } else if (status === 'syncing') {
-      bar.className = 'sync-badge sync-busy';
-      bar.innerHTML = '<span class="status-dot"></span> Đang đồng bộ…';
+      if (btnSyncNow) btnSyncNow.classList.add('spinning');
     } else if (status === 'offline') {
-      bar.className = 'sync-badge sync-offline';
-      bar.innerHTML = '<span class="status-dot"></span> Ngoại tuyến';
-      if (userLabel) userLabel.textContent = 'Đang lưu trên máy này';
+      if (btnAuth) {
+        btnAuth.classList.add('is-offline');
+        btnAuth.classList.remove('is-online');
+        btnAuth.title = 'Ngoại tuyến: Dữ liệu đang được lưu tạm trên máy này.';
+      }
+      if (btnSyncNow) btnSyncNow.classList.remove('spinning');
     } else {
-      bar.className = 'sync-badge sync-unauth';
-      bar.innerHTML = '<span class="status-dot"></span> Chưa đăng nhập';
-      if (userLabel) userLabel.textContent = 'Dữ liệu cục bộ máy này';
-      if (btnAuth) btnAuth.textContent = 'Đăng nhập Online';
-      if (btnSyncNow) btnSyncNow.hidden = true;
+      if (btnAuth) {
+        btnAuth.classList.remove('is-online', 'is-offline');
+        btnAuth.title = 'Bấm để đăng nhập hoặc đăng ký thành viên cơ sở';
+      }
+      if (authText) authText.textContent = 'Đăng nhập';
+      if (btnSyncNow) btnSyncNow.classList.remove('spinning');
     }
   }
 };
